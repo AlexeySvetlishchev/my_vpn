@@ -1,0 +1,18 @@
+# INACTIVE RU-SIDE TEMPLATE. Never pass to wg-quick without separate approval.
+# No changes on NL; its existing AmneziaVPN/Docker must remain operational.
+[Interface]
+# PrivateKey = <RU_WG_PRIVATE_KEY_FROM_APPROVED_SECRET_WORKFLOW>
+Address = <RU_INTERSERVER_IPV4_CIDR>
+MTU = <VERIFIED_INTERSERVER_MTU>
+Table = off
+
+[Peer]
+PublicKey = <NL_WG_PUBLIC_KEY>
+# Stable hostname ONLY, resolved through a separately approved /etc/hosts entry.
+# The example nl-egress.internal is not an approved production hostname.
+Endpoint = <APPROVED_NL_STABLE_HOSTNAME>:<NL_WG_UDP_PORT>
+AllowedIPs = 0.0.0.0/0
+# Table=off prevents wg-quick automatic routes; it does NOT implement fail-closed.
+# Activation requires approved PBR + independent forward protection + tests.
+# NL needs a return route/AllowedIPs for RU WG address and AWG client subnet.
+# Endpoint changes must update the running peer and verify actual NL egress.

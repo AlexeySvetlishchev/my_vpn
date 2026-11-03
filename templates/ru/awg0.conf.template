@@ -1,0 +1,15 @@
+# INACTIVE TEMPLATE. Never pass to awg-quick or rename without separate approval.
+# Values require the reviewed address plan and installed AWG/client compatibility.
+# No keys are generated here. Keep real configuration outside Git, root-only.
+[Interface]
+# PrivateKey = <RU_AWG_PRIVATE_KEY_FROM_APPROVED_SECRET_WORKFLOW>
+Address = <RU_AWG_IPV4_CIDR>
+ListenPort = <RU_AWG_UDP_PORT>
+MTU = <VERIFIED_AWG_MTU>
+Table = off
+# AWG obfuscation parameters: to verify against the installed version and clients.
+# Add the approved complete parameter set in the separately reviewed real config.
+# No example/random Jc/Jmin/Jmax/S*/H*/I* values are selected by this stage.
+
+# No device peers yet. Each later peer has a unique key and client IPv4 /32.
+# DNS, IPv6 leak prevention, firewall/NAT, routing and tc are separate stages.
