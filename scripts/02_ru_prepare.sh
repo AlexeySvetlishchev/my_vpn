@@ -65,7 +65,12 @@ check_ancestors() {
 for dir in "${directories[@]}"; do
     check_ancestors "$dir"
     if [[ -e $dir ]]; then
-        [[ $(stat -c '%u:%g:%a' -- "$dir") == 0:0:700 ]] || fail "Expected root:root 0700: $dir; no automatic permission changes."
+        info=$(stat -c '%u:%g:%a' -- "$dir")
+        if [[ $dir == /etc/amnezia ]]; then
+            [[ $info == 0:0:755 || $info == 0:0:700 ]] || fail "Expected root:root 0755 or 0700: $dir; no automatic permission changes."
+        else
+            [[ $info == 0:0:700 ]] || fail "Expected root:root 0700: $dir; no automatic permission changes."
+        fi
     fi
 done
 for i in "${!sources[@]}"; do
@@ -86,12 +91,14 @@ for i in "${!sources[@]}"; do
 done
 # All preflight and conflict checks complete before any write.
 for dir in "${directories[@]}"; do
+    dir_mode=700
+    [[ $dir != /etc/amnezia ]] || dir_mode=755
     if [[ -d $dir ]]; then
         printf 'KEEP: %s\n' "$dir"
     elif [[ $mode == --dry-run ]]; then
-        printf 'WOULD CREATE: directory root:root 0700 %s\n' "$dir"
+        printf 'WOULD CREATE: directory root:root 0%s %s\n' "$dir_mode" "$dir"
     else
-        mkdir -m 700 -- "$dir"
+        mkdir -m "$dir_mode" -- "$dir"
         printf 'CREATED: directory %s\n' "$dir"
     fi
 done
