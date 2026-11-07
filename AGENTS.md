@@ -5,8 +5,8 @@
 
 ## Инфраструктура
 - `vpn-ru` → `218852` / `137.22.146.212`, `wolffrog`; RU AmneziaWG tools/module установлен, активных клиентских VPN пока нет.
-- `vpn-fr` → `hiplet-142983` / `45.15.128.138`, `wolffrog`; production Docker `amnezia-awg2`/UDP 40905 **запрещено нарушать или удалять**. FR 1 vCPU / 961 МиБ. Привилегированный read-only аудит завершён; TASK 05 подтвердил короткий userspace AmneziaWG smoke, но не 15-минутную устойчивость или production client data plane.
-- NL вне текущего развёртывания. Userspace AmneziaWG RU↔FR выбран для следующего этапа после принятого короткого транспортного smoke; постоянный сервис пока не активирован.
+- `vpn-fr` → `hiplet-142983` / `45.15.128.138`, `wolffrog`; production Docker `amnezia-awg2`/UDP 40905 **запрещено нарушать или удалять**. FR 1 vCPU / 961 МиБ. Привилегированный read-only аудит завершён; короткий TASK 05 smoke и TASK 06 постоянный host-level userspace tunnel приняты. 15-минутная устойчивость, host reboot и production client data plane не подтверждены.
+- NL вне текущего развёртывания. Межсерверный RU↔FR userspace AmneziaWG `awg-transport` работает как отдельный systemd service. Клиентский VPN, PBR/NAT/DNS и egress ещё не включены.
 
 ## Работа Codex
 - Доступ по отдельным SSH-ключам `codex_ru` и `codex_fr` проверен, алиасы настроены. SSH вход не означает root/sudo доступ и не авторизует изменения.

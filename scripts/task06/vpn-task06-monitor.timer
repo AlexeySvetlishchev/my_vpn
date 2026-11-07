@@ -1,0 +1,12 @@
+[Unit]
+Description=Run TASK 06 transport health check every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+AccuracySec=10s
+Unit=vpn-task06-monitor.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

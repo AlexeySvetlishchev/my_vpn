@@ -37,6 +37,15 @@
 - [x] Cleanup тестовых интерфейсов, процессов и runtime state прошёл на RU и FR; default routes, SSH, firewall, sysctl и production Docker/VPN не менялись.
 - [ ] 15-минутная устойчивость/нагрузка не проверена; это отдельная проверка перед клиентским egress.
 
+## Этап 2.6 — постоянный host-level AmneziaWG RU↔FR (TASK 06)
+
+- [x] Отдельные pinned userspace `amneziawg-go` и `awg` собраны дважды; SHA-256 совпали, UAPI socket выделен под `/run/vpn-task06`.
+- [x] Интерфейс `awg-transport`, `10.203.254.0/30`, UDP 51983, MTU 1280; только peer `/32`, отдельные ключи, без default-route/client-route/PBR/NAT/DNS.
+- [x] systemd AWG service и monitor timer enabled; service/probe/monitor units прошли `systemd-analyze verify` на RU и FR.
+- [x] Smoke: свежий handshake и реальные 1024-byte TCP/UDP echo в обе стороны прошли до и после рестарта только RU service и только FR service; финальная проверка успешна.
+- [x] SSH сохранился; TASK 06 baseline подтвердил отсутствие изменений остальных адресов/routes/rules/firewall. FR `amnezia-awg2` остался запущен, UDP 40905 опубликован; Docker/VPN не менялись.
+- [ ] Host reboot, 15-минутная нагрузка и production VPN client data plane не проверены. Не считать FR готовым для клиентского egress без отдельного этапа оценки.
+
 ## Этап 3 — выбранный межсерверный транспорт + PBR + fail-closed
 
 - [ ] RU destination → внешний IPv4 RU; иностранный destination → внешний IPv4 FR. Результат проверен с клиента, а не только через `ip route`.

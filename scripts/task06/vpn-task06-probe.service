@@ -1,0 +1,31 @@
+[Unit]
+Description=TASK 06 interface-bound TCP/UDP echo probe
+StartLimitIntervalSec=300
+StartLimitBurst=5
+Requires=vpn-task06-awg.service
+BindsTo=vpn-task06-awg.service
+PartOf=vpn-task06-awg.service
+After=vpn-task06-awg.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+UMask=0077
+RuntimeDirectory=vpn-task06
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=restart
+ExecStart=/usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C /usr/bin/python3 -I -B /opt/vpn-task06/helper.py probe-server
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=10s
+KillMode=control-group
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/run/vpn-task06 /etc/vpn-task06 /var/lib/vpn-task06
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=CAP_NET_RAW
+StandardOutput=journal
+StandardError=journal

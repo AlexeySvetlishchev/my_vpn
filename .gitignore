@@ -42,3 +42,5 @@ Thumbs.db
 # TASK 05 public build inputs/artifacts (never server state or keys)
 .task05-build/
 artifacts/task05/
+artifacts/task06/
+.task06-build/

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "platform": "linux/amd64",
+  "builder": "golang@sha256:4f43b271f9673eb7bd0cb3a49cc17b08d8d6ee110277e26dbacc93c43a5a7793",
+  "go_url": "https://github.com/amnezia-vpn/amneziawg-go.git",
+  "go_commit": "b5928efb6ca19f0153958460c3d141f04abc5c2e",
+  "tools_url": "https://github.com/amnezia-vpn/amneziawg-tools.git",
+  "tools_commit": "ee0f0a9aa34ff0a0da4b3433b9512781cfe02843",
+  "tools_version": "3.1.20260812",
+  "socket_directory": "/run/vpn-task06/amneziawg"
+}
