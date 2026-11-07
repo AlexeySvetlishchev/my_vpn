@@ -38,3 +38,7 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# TASK 05 public build inputs/artifacts (never server state or keys)
+.task05-build/
+artifacts/task05/
