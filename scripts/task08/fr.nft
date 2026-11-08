@@ -1,0 +1,12 @@
+add table ip vpn_task08_fr
+add chain ip vpn_task08_fr postrouting { type nat hook postrouting priority 90; policy accept; }
+add rule ip vpn_task08_fr postrouting iifname "awg-transport" oifname "ens3" ip saddr 10.203.253.0/24 masquerade comment "vpn-task08-owned"
+add rule ip vpn_task08_fr postrouting iifname "awg-transport" oifname "ens3" ip saddr 10.203.254.1 ip daddr { 9.9.9.9, 149.112.112.112 } udp dport 53 masquerade comment "vpn-task08-owned"
+add rule ip vpn_task08_fr postrouting iifname "awg-transport" oifname "ens3" ip saddr 10.203.254.1 ip daddr { 9.9.9.9, 149.112.112.112 } tcp dport 53 masquerade comment "vpn-task08-owned"
+add chain ip filter vpn_task08_fr_forward
+add rule ip filter vpn_task08_fr_forward iifname "awg-transport" oifname "ens3" ip saddr 10.203.253.0/24 ip daddr != { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 240.0.0.0/4 } accept comment "vpn-task08-owned"
+add rule ip filter vpn_task08_fr_forward iifname "awg-transport" oifname "ens3" ip saddr 10.203.254.1 ip daddr { 9.9.9.9, 149.112.112.112 } udp dport 53 accept comment "vpn-task08-owned"
+add rule ip filter vpn_task08_fr_forward iifname "awg-transport" oifname "ens3" ip saddr 10.203.254.1 ip daddr { 9.9.9.9, 149.112.112.112 } tcp dport 53 accept comment "vpn-task08-owned"
+add rule ip filter vpn_task08_fr_forward iifname "ens3" oifname "awg-transport" ip daddr 10.203.253.0/24 ct state established,related accept comment "vpn-task08-owned"
+add rule ip filter vpn_task08_fr_forward iifname "ens3" oifname "awg-transport" ip daddr 10.203.254.1 ct state established,related accept comment "vpn-task08-owned"
+add rule ip filter vpn_task08_fr_forward return comment "vpn-task08-owned"

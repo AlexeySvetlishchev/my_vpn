@@ -1,5 +1,6 @@
 """Offline TASK 06 guardrail tests; never connects to hosts or starts networking."""
 import ast
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -36,6 +37,13 @@ class Task06SafetyTests(unittest.TestCase):
         self.assertIn("'probe', 'interface_address_check'", source)
         self.assertIn("action in ('status', 'monitor', 'wait-ready')", source)
         self.assertIn('for attempt in range(3)', source)
+        self.assertIn('def owned_task07_interface():', source)
+        self.assertIn("state.get('phase') == 'active'", source)
+        self.assertIn("link.get('ifindex') == state['ifindex']", source)
+        self.assertIn("link.get('linkinfo', {}).get('info_kind') in (None, 'tun')", source)
+        self.assertIn("route['dst'], strict=False).subnet_of(TASK07_NET)", source)
+        self.assertIn("route.get('dst') == 'ff00::/8'", source)
+        self.assertIn("route.get('dst') in link_locals6", source)
         self.assertNotRegex(source, r'\b(?:nft|iptables|ufw)\b[^\n]*(?:add|insert|delete|flush)')
 
     def test_launcher_is_fixed_allowlist(self):
@@ -55,6 +63,8 @@ class Task06SafetyTests(unittest.TestCase):
         self.assertIn('AF_NETLINK', probe)
         monitor = (TASK / 'vpn-task06-monitor.service').read_text(encoding='utf-8')
         self.assertIn('ReadWritePaths=/run/vpn-task06', monitor)
+        self.assertNotIn('RuntimeDirectory=', monitor)
+        self.assertIn('Requires=vpn-task06-awg.service', monitor)
         for path in TASK.glob('vpn-task06-*'):
             content = path.read_text(encoding='utf-8')
             self.assertNotIn('docker ', content)
@@ -87,6 +97,43 @@ class Task06SafetyTests(unittest.TestCase):
         self.assertIn("'restart-awg': 'sudo -n /usr/bin/systemctl restart vpn-task06-awg.service'", source)
         self.assertNotIn('shell=True', source)
         self.assertNotIn('PrivateKey', source)
+
+    def test_remote_diagnostic_avoids_powershell_stdin_crlf(self):
+        source = (TASK / 'verify-remote.ps1').read_text(encoding='utf-8')
+        self.assertIn("[ValidateSet('vpn-ru', 'vpn-fr')]", source)
+        self.assertIn("'sudo -n /usr/local/sbin/vpn-task06 wait-ready'", source)
+        self.assertNotIn('bash -s', source.split('# Pass fixed commands directly to SSH.', 1)[0])
+        self.assertNotIn('head -c', source)
+
+    def test_monitor_owns_no_shared_runtime_and_upgrade_is_pinned(self):
+        unit = (TASK / 'vpn-task06-monitor.service').read_bytes()
+        self.assertNotIn(b'RuntimeDirectory=', unit)
+        self.assertIn(b'Requires=vpn-task06-awg.service', unit)
+        upgrade = (TASK / 'upgrade-monitor-runtime.py').read_text(encoding='utf-8')
+        self.assertIn(hashlib.sha256(unit).hexdigest(), upgrade)
+        self.assertIn("NAME = 'vpn-task06-monitor.service'", upgrade)
+        self.assertIn("Path('/root/vpn-task06-monitor-fix-backup')", upgrade)
+        self.assertIn("'/usr/bin/systemctl', 'daemon-reload'", upgrade)
+        self.assertNotIn('shell=True', upgrade)
+
+    def test_task08_projection_only_selects_its_own_nft_objects(self):
+        source = (TASK / 'helper.py').read_text(encoding='utf-8')
+        module = ast.parse(source)
+        fn = next(node for node in module.body if isinstance(node, ast.FunctionDef)
+                  and node.name == 'task08_nft_subset')
+        scope = {}
+        exec(compile(ast.Module(body=[fn], type_ignores=[]), 'task08_projection', 'exec'), scope)
+        select = scope['task08_nft_subset']
+        self.assertEqual(select({'table': {'family': 'ip', 'name': 'vpn_task08_fr'}}, 'fr'), 'own')
+        self.assertEqual(select({'rule': {'family': 'ip', 'table': 'filter',
+                                         'chain': 'FORWARD', 'expr': [
+            {'jump': {'target': 'vpn_task08_fr_forward'}}]}}, 'fr'), 'filter')
+        self.assertIsNone(select({'rule': {'family': 'ip', 'table': 'filter',
+                                            'chain': 'FORWARD', 'expr': [
+            {'jump': {'target': 'DOCKER-FORWARD'}}]}}, 'fr'))
+        self.assertIsNone(select({'rule': {'family': 'ip', 'table': 'nat',
+                                            'chain': 'POSTROUTING', 'expr': [
+            {'masquerade': None}]}}, 'fr'))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,2 @@
+# One IPv4 CIDR per line. Every entry stays on FR even when ru_set contains it.
+# Keep empty until a service-specific exception is reviewed and verified.

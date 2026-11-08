@@ -1,0 +1,11 @@
+[Unit]
+Description=TASK 08 RU IPv4 geofeed refresh about every 12 hours
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=12h
+Unit=vpn-task08-ru-prefixes.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

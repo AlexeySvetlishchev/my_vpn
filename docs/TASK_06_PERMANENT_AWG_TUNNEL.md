@@ -143,6 +143,16 @@ flush/cleanup и не менять чужие файлы.
 Откат не должен редактировать `/etc/docker`, FR Docker networks, nftables/
 iptables/UFW, sysctl, `/etc/hosts`, host default routes или другие сервисы.
 
+## 6.1. TASK 07: совместимость с клиентским интерфейсом (2026-11-07)
+
+На RU helper/manifest TASK 06 обновлены адресно: `snapshot()` исключает `awg-client` только при совпадении root-owned TASK 07 ledger, alias, ifindex, типа userspace TUN, адреса `10.203.253.1/24` и строго ограниченных connected/local IPv4 и link-local IPv6 маршрутов. Все прочие адреса, routes/rules и firewall hash сравниваются с прежним baseline. Оригинальные helper/manifest сохранены в `/root/vpn-task06-task07-baseline-backup`; FR TASK 06 helper не менялся. Скрипт `scripts/task06/verify-remote.ps1` выполняет fixed SSH-команды без CRLF-чувствительного `bash -s` диагностического here-string.
+
+После первого краткого теста с TASK 07 служба RU TASK 06 отказала, а FR получил `handshake_age=null`. Повторные отказы происходили и с полностью остановленным TASK 07. Диагностика показала, что дочерний `amneziawg-go` завершался с кодом 0 сразу после завершения systemd `vpn-task06-monitor.service`; прямой вызов того же monitor helper не прерывал транспорт. У monitor unit был общий с транспортом `RuntimeDirectory=vpn-task06`. Эта директива удалена только из monitor unit на RU и FR; пакетный manifest обновлён с проверкой SHA-256, предыдущие unit/manifest сохранены в `/root/vpn-task06-monitor-fix-backup` на обоих узлах. Каталог runtime теперь создаёт и сохраняет только `vpn-task06-awg.service`.
+
+После правки RU TASK 06 перезапущен собственным unit, TASK 07 userspace `awg-client` кратко запущен на RU. Повторные systemd monitor и отдельные RU/FR проверки вернули свежий handshake и `healthy=true`, `tcp_echo=true`, `udp_echo=true`; счётчики RU restart остались 0 после reset, FR — 100 от прежних отказов. Baseline RU допускает только валидный, принадлежащий TASK 07 интерфейс; остальные адреса, маршруты, правила и firewall hash совпали с сохранённым baseline. Production `amnezia-awg2` остался `Up` с UDP 40905. Хостовые default routes, Docker и общие firewall-правила не менялись. Это короткая проверка; длительная устойчивость и реальный клиентский трафик ещё не подтверждены.
+
+Адресный откат только правки monitor unit при необходимости: на соответствующем узле остановить `vpn-task06-monitor.timer`, восстановить `/opt/vpn-task06/vpn-task06-monitor.service`, `/etc/systemd/system/vpn-task06-monitor.service` и `/opt/vpn-task06/manifest.json` из трёх одноимённых файлов `/root/vpn-task06-monitor-fix-backup` с владельцем root и режимом 0644, выполнить `systemctl daemon-reload`, затем запустить timer. Бэкап RU содержит manifest уже после TASK 07 baseline patch; откат monitor unit не должен возвращать старый RU helper. Проверить `vpn-task06 status` и `monitor` после восстановления. Production Docker и host firewall этот откат не затрагивает.
+
 ## 7. Полномочия и отзыв доступа
 
 Сохранены `wolffrog` и раздельные Codex SSH keys; новые Unix-пользователи и

@@ -23,6 +23,9 @@ CONF = Path('/etc/vpn-task06')
 STATE = Path('/var/lib/vpn-task06')
 RUNTIME = Path('/run/vpn-task06')
 IFACE = 'awg-transport'
+TASK07_IFACE = 'awg-client'
+TASK07_NET = ipaddress.ip_network('10.203.253.0/24')
+TASK08_STATE = Path('/var/lib/vpn-task08/active.json')
 NET = ipaddress.ip_network('10.203.254.0/30')
 PORT, DATA_PORT, MTU = 51983, 51984, 1280
 PUBLIC = {'ru': '137.22.146.212', 'fr': '45.15.128.138'}
@@ -38,7 +41,7 @@ BIN_GO = str(BASE / 'amneziawg-go')
 BIN_AWG = str(BASE / 'awg')
 IP = '/usr/sbin/ip'
 ENV = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C', 'HOME': '/',
-       'LOG_LEVEL': 'silent', 'GOMAXPROCS': '1', 'GOMEMLIMIT': '96MiB'}
+       'LOG_LEVEL': 'error', 'GOMAXPROCS': '1', 'GOMEMLIMIT': '96MiB'}
 PAYLOAD = b'TASK06:' + bytes(range(256)) * 3 + bytes(range(249))
 assert len(PAYLOAD) == 1024
 LOCK = RUNTIME / 'control.lock'
@@ -185,19 +188,146 @@ def stable(value):
     return value
 
 
+def task08_state():
+    """Accept only a root-owned TASK 08 record; never learn a new baseline."""
+    if not TASK08_STATE.exists() and not TASK08_STATE.is_symlink():
+        return None
+    checked(TASK08_STATE.parent, directory=True, mode=0o700)
+    checked(TASK08_STATE, mode=0o600)
+    state = json.loads(TASK08_STATE.read_text())
+    role = (CONF / 'role').read_text().strip()
+    require(state.get('schema') == 1 and state.get('role') == role and
+            state.get('phase') == 'active' and role in PUBLIC and
+            isinstance(state.get('rules4'), list) and
+            isinstance(state.get('own_table_sha256'), str) and
+            len(state['own_table_sha256']) == 64 and
+            (role != 'fr' or isinstance(state.get('filter_sha256'), str)))
+    return state
+
+
+def task08_nft_subset(obj, role):
+    key, value = next(iter(obj.items()))
+    if not isinstance(value, dict):
+        return None
+    own_table = 'vpn_task08_' + role
+    if (value.get('table') == own_table or
+            (key == 'table' and value.get('name') == own_table)):
+        return 'own'
+    if role == 'fr' and value.get('family') == 'ip' and value.get('table') == 'filter':
+        if key == 'chain' and value.get('name') == 'vpn_task08_fr_forward':
+            return 'filter'
+        if key == 'rule' and value.get('chain') == 'vpn_task08_fr_forward':
+            return 'filter'
+        if key == 'rule' and value.get('chain') == 'FORWARD' and any(
+                part.get('jump', {}).get('target') == 'vpn_task08_fr_forward'
+                for part in value.get('expr', []) if isinstance(part, dict)):
+            return 'filter'
+    return None
+
+
+def task08_filtered_nft(parsed, state):
+    if state is None:
+        return parsed
+    selected = {'own': [], 'filter': []}
+    rest = []
+    for obj in parsed.get('nftables', []):
+        kind = task08_nft_subset(obj, state['role'])
+        (selected[kind] if kind else rest).append(obj)
+    for kind, expected in (('own', state['own_table_sha256']),
+                           ('filter', state.get('filter_sha256'))):
+        if selected[kind]:
+            actual = hashlib.sha256(json.dumps(stable({'nftables': selected[kind]}),
+                                               sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            require(actual == expected)
+    return {'nftables': rest}
+
+
+def owned_task07_interface():
+    """Exclude only the exact, active TASK 07 ingress from TASK 06's baseline."""
+    links07 = ip_json('-d', 'link', 'show', 'dev', TASK07_IFACE, allow_failure=True)
+    if not links07:
+        return False
+    require(len(links07) == 1)
+    root = Path('/etc/vpn-task07')
+    ledger = root / 'state.json'
+    checked(root, directory=True, mode=0o700)
+    checked(ledger, mode=0o600)
+    state = json.loads(ledger.read_text())
+    link = links07[0]
+    require(state.get('schema') == 1 and state.get('iface') == TASK07_IFACE and
+            state.get('phase') == 'active' and state.get('port') == 51821 and
+            state.get('implementation') == 'userspace' and
+            state.get('network') == str(TASK07_NET) and
+            isinstance(state.get('nonce'), str) and len(state['nonce']) == 32 and
+            all(c in '0123456789abcdef' for c in state['nonce']) and
+            isinstance(state.get('ifindex'), int) and
+            link.get('ifindex') == state['ifindex'] and
+            link.get('ifalias') == 'vpn-task07:' + state['nonce'] and
+            link.get('linkinfo', {}).get('info_kind') in (None, 'tun') and
+            link.get('mtu') == 1280)
+    addr4 = ip_json('-4', 'address', 'show', 'dev', TASK07_IFACE)
+    addr6 = ip_json('-6', 'address', 'show', 'dev', TASK07_IFACE)
+    require(len(addr4) == 1 and len(addr4[0].get('addr_info', [])) == 1 and
+            addr4[0]['addr_info'][0].get('local') == '10.203.253.1' and
+            addr4[0]['addr_info'][0].get('prefixlen') == 24)
+    link_locals6 = set()
+    for row in addr6:
+        for address in row.get('addr_info', []):
+            require(ipaddress.ip_address(address.get('local')).is_link_local and
+                    address.get('prefixlen') == 64)
+            link_locals6.add(address['local'])
+    for family in ('-4', '-6'):
+        for route in ip_json(family, 'route', 'show', 'table', 'all'):
+            if route.get('dev') != TASK07_IFACE:
+                continue
+            if family == '-6':
+                require((route.get('dst') == 'ff00::/8' and
+                         route.get('type') == 'multicast' and
+                         route.get('table') == 'local' and
+                         route.get('protocol') == 'kernel') or
+                        (route.get('dst') == 'fe80::/64' and
+                         route.get('protocol') == 'kernel') or
+                        (route.get('dst') in link_locals6 and
+                         route.get('type') == 'local' and
+                         route.get('table') == 'local' and
+                         route.get('protocol') == 'kernel'))
+            else:
+                require(route.get('dst') not in (None, 'default'))
+                require(ipaddress.ip_network(route['dst'], strict=False).subnet_of(TASK07_NET))
+    return True
+
+
 def snapshot():
+    egress = task08_state()
+    excluded = {IFACE}
+    if owned_task07_interface():
+        excluded.add(TASK07_IFACE)
     routes = {}
     for family in ('-4', '-6'):
         rows = ip_json(family, 'route', 'show', 'table', 'all')
-        routes[family] = stable([r for r in rows if r.get('dev') != IFACE])
+        routes[family] = stable([r for r in rows if r.get('dev') not in excluded])
     addresses = []
     for family in ('-4', '-6'):
-        addresses.extend(r for r in ip_json(family, 'address', 'show') if r.get('ifname') != IFACE)
+        addresses.extend(r for r in ip_json(family, 'address', 'show') if r.get('ifname') not in excluded)
     addresses = stable(addresses)
-    rules = {family: stable(ip_json(family, 'rule', 'show')) for family in ('-4', '-6')}
+    rules = {}
+    for family in ('-4', '-6'):
+        rows = ip_json(family, 'rule', 'show')
+        if family == '-4' and egress is not None:
+            expected = egress['rules4']
+            priorities = {r['priority'] for r in expected}
+            filtered = []
+            for row in rows:
+                if row.get('priority') in priorities:
+                    require(row in expected)
+                else:
+                    filtered.append(row)
+            rows = filtered
+        rules[family] = stable(rows)
     nft = run(['/usr/sbin/nft', '-j', 'list', 'ruleset'])
     try:
-        fw_hash = hashlib.sha256(json.dumps(stable(json.loads(nft)), sort_keys=True,
+        parsed = task08_filtered_nft(json.loads(nft), egress)
+        fw_hash = hashlib.sha256(json.dumps(stable(parsed), sort_keys=True,
                                             separators=(',', ':')).encode()).hexdigest()
     except json.JSONDecodeError:
         raise Failure('baseline', 'parse_firewall_json', 'invalid_output') from None
@@ -333,12 +463,17 @@ def prepare_existing(role):
 
 def configure_interface(role, peer_key, state):
     other = PEER[role]
+    egress = task08_state()
+    allowed = INNER[other] + '/32'
+    if egress is not None:
+        allowed = ('0.0.0.0/0' if role == 'ru' else
+                   INNER[other] + '/32,10.203.253.0/24')
     run([BIN_AWG, 'set', IFACE, 'private-key', str(CONF / 'private.key'),
          'listen-port', str(PORT), 'jc', '4', 'jmin', '64', 'jmax', '256',
          's1', '32', 's2', '64', 's3', '32', 's4', '32',
          'h1', '176321011-176321111', 'h2', '276321011-276321111',
          'h3', '376321011-376321111', 'h4', '476321011-476321111',
-         'peer', peer_key, 'allowed-ips', INNER[other] + '/32',
+         'peer', peer_key, 'allowed-ips', allowed,
          'endpoint', PUBLIC[other] + ':' + str(PORT), 'persistent-keepalive', '25'])
     run([IP, 'address', 'add', INNER[role] + '/30', 'dev', IFACE])
     run([IP, 'link', 'set', 'dev', IFACE, 'mtu', str(MTU), 'up'])
@@ -367,8 +502,28 @@ def service(role):
     old_int = signal.signal(signal.SIGINT, stop_signal)
     try:
         proc = subprocess.Popen([BIN_GO, '-f', IFACE], stdin=subprocess.DEVNULL,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                                 env=ENV, close_fds=True)
+        process_error = {'kind': 'unspecified'}
+
+        def classify_stderr():
+            # Classify and discard each line. Raw stderr, peer data and keys
+            # never reach a file, journal or diagnostic output.
+            for line in proc.stderr:
+                lower = line[:4096].lower()
+                if b'panic:' in lower or b'fatal error:' in lower:
+                    process_error['kind'] = 'panic'
+                elif b'tun' in lower and (b'failed' in lower or b'error' in lower):
+                    process_error['kind'] = 'tun_io'
+                elif b'uapi' in lower and (b'failed' in lower or b'error' in lower):
+                    process_error['kind'] = 'uapi'
+                elif b'bind' in lower and (b'failed' in lower or b'error' in lower):
+                    process_error['kind'] = 'udp_bind'
+                elif b'error' in lower or b'failed' in lower:
+                    process_error['kind'] = 'other_error'
+
+        stderr_reader = threading.Thread(target=classify_stderr, daemon=True)
+        stderr_reader.start()
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
             if links() and (control / (IFACE + '.sock')).exists():
@@ -388,7 +543,10 @@ def service(role):
         while not stopping.wait(.5):
             rc = proc.poll()
             if rc is not None:
-                raise Failure('service', 'userspace_awg_exited', 'command_failed')
+                stderr_reader.join(timeout=1)
+                raise Failure('service',
+                              'userspace_awg_exited_rc_' + str(rc) + '_' + process_error['kind'],
+                              'command_failed')
         proc.terminate()
         try:
             proc.wait(timeout=10)

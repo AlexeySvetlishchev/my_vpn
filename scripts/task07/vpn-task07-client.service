@@ -1,0 +1,34 @@
+[Unit]
+Description=TASK 07 client AmneziaWG ingress interface
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+ConditionPathExists=/etc/vpn-task07/server.key
+ConditionPathExists=/etc/vpn-task07/client.key
+
+[Service]
+Type=simple
+RuntimeDirectory=vpn-task07
+RuntimeDirectoryMode=0700
+ExecStart=/usr/local/sbin/vpn-task07 serve
+ExecStartPost=/usr/local/sbin/vpn-task07 wait-ready
+Restart=on-failure
+RestartSec=5s
+KillMode=control-group
+TimeoutStartSec=30
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/vpn-task07 /run/vpn-task07
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+DevicePolicy=closed
+DeviceAllow=/dev/net/tun rw
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

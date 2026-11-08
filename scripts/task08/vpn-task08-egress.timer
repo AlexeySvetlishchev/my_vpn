@@ -1,0 +1,11 @@
+[Unit]
+Description=TASK 08 short interval addressed egress recovery
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=30s
+Unit=vpn-task08-egress.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

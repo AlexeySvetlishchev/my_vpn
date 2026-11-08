@@ -1,0 +1,22 @@
+[Unit]
+Description=TASK 08 validated RU IPv4 geofeed update
+Requires=vpn-task08-egress.service
+After=network-online.target vpn-task08-egress.service
+ConditionPathExists=/var/lib/vpn-task08/active.json
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/python3 -I -B /opt/vpn-task08/ru-prefix-update.py refresh
+TimeoutStartSec=180s
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vpn-task08 /proc/sys/net/ipv4
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,11 @@
+port=53
+no-resolv
+no-poll
+no-hosts
+bind-dynamic
+listen-address=10.203.253.1
+server=9.9.9.9@awg-transport@10.203.254.1
+server=149.112.112.112@awg-transport@10.203.254.1
+cache-size=256
+dns-forward-max=64
+log-facility=-

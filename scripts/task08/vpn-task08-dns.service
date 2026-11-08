@@ -1,0 +1,28 @@
+[Unit]
+Description=TASK 08 isolated client DNS through FR
+Requires=vpn-task08-egress.service vpn-task07-client.service
+After=vpn-task08-egress.service vpn-task07-client.service
+ConditionPathExists=/var/lib/vpn-task08/active.json
+
+[Service]
+Type=simple
+User=root
+Group=root
+UMask=0077
+RuntimeDirectory=vpn-task08-dns
+RuntimeDirectoryMode=0700
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --conf-file=/opt/vpn-task08/dnsmasq.conf --pid-file=/run/vpn-task08-dns/dnsmasq.pid
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=no
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/run/vpn-task08-dns
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_NET_ADMIN CAP_SETUID CAP_SETGID CAP_SETPCAP CAP_CHOWN
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
