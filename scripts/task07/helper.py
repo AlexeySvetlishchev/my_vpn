@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import ipaddress
 import hashlib
+import base64
+from contextlib import closing
 import json
 import os
 import secrets
 import signal
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -29,6 +32,8 @@ SERVER_KEY = OWNER + "/server.key"
 CLIENT_KEY = OWNER + "/client.key"
 CLIENT_PUB = OWNER + "/client.pub"
 PROFILE = OWNER + "/Test_iPhone.conf"
+MANAGER_ACTIVATION = Path('/etc/vpn-task09/activation.json')
+MANAGER_DB = Path('/var/lib/vpn-task09/manager.sqlite3')
 EXPORT_DIR = "/home/wolffrog/task07-export"
 EXPORT_PROFILE = EXPORT_DIR + "/Test_iPhone.conf"
 IP = "/usr/sbin/ip"
@@ -248,6 +253,66 @@ def verify_owned(state: dict, link: dict | None) -> None:
         raise Refusal("interface flags mismatch")
 
 
+def startup_peers(client_pub: str, *, activation=MANAGER_ACTIVATION,
+                  database=MANAGER_DB, strict=True) -> list[tuple[str, str]]:
+    """Read one desired peer source; never adopt live peers as desired state."""
+    activation = Path(activation)
+    if not activation.exists() and not activation.is_symlink():
+        return [(client_pub, CLIENT_IP)]
+    if strict:
+        st = activation.lstat()
+        if (activation.is_symlink() or not stat.S_ISREG(st.st_mode) or
+                st.st_uid != 0 or stat.S_IMODE(st.st_mode) != 0o600):
+            raise Refusal('Manager activation ownership mismatch')
+    try:
+        record = json.loads(activation.read_text(encoding='ascii'))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise Refusal('Manager activation invalid') from None
+    if record != {'schema': 1, 'state': 'approved',
+                  'legacy_public_sha256': hashlib.sha256(client_pub.encode()).hexdigest()}:
+        raise Refusal('Manager activation identity mismatch')
+    database = Path(database)
+    if strict:
+        parent = database.parent.lstat()
+        st = database.lstat()
+        if (database.is_symlink() or not stat.S_ISREG(st.st_mode) or
+                parent.st_uid != 0 or stat.S_IMODE(parent.st_mode) != 0o700 or
+                st.st_uid != 0 or stat.S_IMODE(st.st_mode) != 0o600):
+            raise Refusal('Manager database ownership mismatch')
+    try:
+        with closing(sqlite3.connect('file:' + str(database) + '?mode=ro',
+                                     uri=True, timeout=10)) as db:
+            db.execute('PRAGMA query_only=ON')
+            db.execute('PRAGMA busy_timeout=10000')
+            old = db.execute("SELECT public_key,ipv4 FROM devices WHERE origin='task07' "
+                             "AND profile_name='Test_iPhone'").fetchall()
+            if old != [(client_pub, '10.203.253.2')]:
+                raise Refusal('legacy peer identity differs from Manager database')
+            rows = db.execute("SELECT d.public_key,d.ipv4 FROM devices d JOIN users u "
+                              "ON u.id=d.user_id WHERE d.state='enabled' "
+                              "AND u.state='enabled'").fetchall()
+    except sqlite3.Error:
+        raise Refusal('Manager database unreadable') from None
+    peers = []
+    seen_keys, seen_ips = set(), set()
+    for public_key, address in rows:
+        try:
+            decoded = base64.b64decode(public_key, validate=True)
+            ip = ipaddress.ip_address(address)
+        except (ValueError, base64.binascii.Error):
+            raise Refusal('Manager peer metadata invalid') from None
+        if (len(decoded) != 32 or len(public_key) != 44 or
+                not isinstance(ip, ipaddress.IPv4Address) or
+                ip not in NETWORK or address in ('10.203.253.0', '10.203.253.1',
+                                                  '10.203.253.255') or
+                public_key in seen_keys or address in seen_ips):
+            raise Refusal('Manager peer metadata invalid')
+        seen_keys.add(public_key)
+        seen_ips.add(address)
+        peers.append((public_key, address + '/32'))
+    return peers
+
+
 def serve() -> None:
     require_root()
     prepare()
@@ -285,12 +350,14 @@ def serve() -> None:
         state["ifindex"] = link["ifindex"]
         atomic_write(STATE_FILE, json.dumps(state, sort_keys=True) + "\n", 0o600)
         _, client_pub = keypair(CLIENT_KEY)
+        peers = startup_peers(client_pub)
         run([AWG, "set", IFACE, "private-key", SERVER_KEY, "listen-port", str(PORT),
              "jc", "4", "jmin", "64", "jmax", "256", "s1", "32", "s2", "64",
              "s3", "32", "s4", "32", "h1", "176321011-176321111",
              "h2", "276321011-276321111", "h3", "376321011-376321111",
-             "h4", "476321011-476321111", "peer", client_pub,
-             "allowed-ips", CLIENT_IP])
+             "h4", "476321011-476321111"])
+        for public_key, address in peers:
+            run([AWG, "set", IFACE, "peer", public_key, "allowed-ips", address])
         run([IP, "address", "add", SERVER_IP, "dev", IFACE])
         run([IP, "link", "set", "dev", IFACE, "mtu", str(MTU), "up"])
         state["phase"] = "active"

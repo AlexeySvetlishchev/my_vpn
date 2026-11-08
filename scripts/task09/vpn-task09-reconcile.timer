@@ -1,0 +1,11 @@
+[Unit]
+Description=TASK 09 peer drift reconciliation
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Unit=vpn-task09-reconcile.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
