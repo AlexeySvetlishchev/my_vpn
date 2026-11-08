@@ -2,6 +2,8 @@
 *.sh text eol=lf
 *.template text eol=lf
 *.py text eol=lf
+*.nft text eol=lf
+scripts/task09_review/staged-task09/vpn-task07 text eol=lf
 *.service text eol=lf
 *.timer text eol=lf
 *.md text eol=lf

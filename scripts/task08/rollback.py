@@ -20,7 +20,7 @@ SYSTEMCTL = '/usr/bin/systemctl'
 TABLE = {'ru': 'vpn_task08_ru', 'fr': 'vpn_task08_fr'}
 COMMENT = 'vpn-task08-owned'
 PRIORITIES = (10000, 10010, 10020, 10021, 10030, 10031, 10032, 10033)
-TASK07_NEW = 'd2370830e7cc9228127d019d9dc53036a5dacb37320627328228fee58395a141'
+TASK07_NEW = '0f4416045a4bd321b0c424bd56ad645bc01babc99b60feb51a387fa3efd5f852'
 
 
 def run(argv, *, data=None, allow_failure=False):

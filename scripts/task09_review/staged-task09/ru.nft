@@ -1,0 +1,29 @@
+add table ip vpn_task08_ru
+add set ip vpn_task08_ru blocked4 { type ipv4_addr; flags interval; elements = { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 137.22.146.0/24, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 240.0.0.0/4, 45.15.128.0/24 } }
+add set ip vpn_task08_ru ru_set { type ipv4_addr; flags interval; elements = { 77.88.8.8/32 } }
+add set ip vpn_task08_ru force_egress { type ipv4_addr; flags interval; }
+add chain ip vpn_task08_ru prerouting { type filter hook prerouting priority -150; policy accept; }
+add chain ip vpn_task08_ru input { type filter hook input priority -10; policy accept; }
+add chain ip vpn_task08_ru forward { type filter hook forward priority -10; policy accept; }
+add chain ip vpn_task08_ru output { type filter hook output priority -10; policy accept; }
+add chain ip vpn_task08_ru postrouting { type nat hook postrouting priority 90; policy accept; }
+add rule ip vpn_task08_ru prerouting iifname "awg-client" ip saddr { 10.203.253.0, 10.203.253.1, 10.203.253.255 } drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru prerouting iifname "awg-client" ip saddr != 10.203.253.0/24 drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru prerouting iifname "awg-client" ip daddr 10.203.253.1 return comment "vpn-task08-owned"
+add rule ip vpn_task08_ru prerouting iifname "awg-client" ip daddr @blocked4 drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru prerouting iifname "awg-client" ip daddr @force_egress meta mark set 0x702 return comment "vpn-task08-owned"
+add rule ip vpn_task08_ru prerouting iifname "awg-client" ip daddr @ru_set meta mark set 0x701 return comment "vpn-task08-owned"
+add rule ip vpn_task08_ru prerouting iifname "awg-client" meta mark set 0x702 comment "vpn-task08-owned"
+add rule ip vpn_task08_ru input iifname "awg-client" ip saddr 10.203.253.0/24 ip daddr 10.203.253.1 udp dport 53 accept comment "vpn-task08-owned"
+add rule ip vpn_task08_ru input iifname "awg-client" ip saddr 10.203.253.0/24 ip daddr 10.203.253.1 tcp dport 53 accept comment "vpn-task08-owned"
+add rule ip vpn_task08_ru input iifname "awg-client" drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru forward iifname "awg-client" ip saddr != 10.203.253.0/24 drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru forward iifname "awg-client" oifname "eth0" meta mark 0x701 ip daddr @ru_set ip daddr != @force_egress accept comment "vpn-task08-owned"
+add rule ip vpn_task08_ru forward iifname "awg-client" oifname "awg-transport" meta mark 0x702 accept comment "vpn-task08-owned"
+add rule ip vpn_task08_ru forward iifname "awg-client" drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru forward iifname "awg-transport" oifname "awg-client" ip daddr 10.203.253.0/24 ct state established,related accept comment "vpn-task08-owned"
+add rule ip vpn_task08_ru forward iifname "awg-transport" oifname "awg-client" drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru output oifname "eth0" ip saddr 10.203.254.1 drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru output oifname "eth0" ip daddr { 9.9.9.9, 149.112.112.112 } udp dport 53 drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru output oifname "eth0" ip daddr { 9.9.9.9, 149.112.112.112 } tcp dport 53 drop comment "vpn-task08-owned"
+add rule ip vpn_task08_ru postrouting iifname "awg-client" oifname "eth0" ip saddr 10.203.253.0/24 meta mark 0x701 ip daddr @ru_set masquerade comment "vpn-task08-owned"

@@ -1,6 +1,13 @@
 # TASK 09 — VPN Manager / `vpnctl`
 
-Status (2026-11-08): the inert Manager package and `vpnctl` are installed on RU. SQLite contains only the adopted public metadata of `Test_iPhone`; the old private key and profile remain in TASK 07. There is **no activation marker, reconcile timer, or live peer mutation**. The TASK 07 helper change exists only in this repository and staging, not in the running service. TASK 06/08 networking, FR Docker and the client profile were not changed. First live peer operation and the scoped RU TASK 08 firewall change require the single approval below.
+Current status (2026-11-08): deployed on RU after explicit owner approval for
+maintenance downtime and peer operations. SQLite-backed TASK07 startup,
+activation, expanded TASK08 client rules and reconcile timer are active.
+The independent probe passed real AWG/DNS/HTTPS and disable/enable tests,
+restart persistence and revoke. Test_iPhone identity/profile are unchanged.
+See [deployment result and addressed rollback](TASK_09_DEPLOYMENT_RESULT.md).
+Preparation/gate descriptions below are historical where they describe an
+inert installation or require the approval already granted for this stage.
 
 ## Scope and observed baseline
 

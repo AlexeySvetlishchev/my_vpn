@@ -19,7 +19,7 @@ IP = '/usr/sbin/ip'
 SYSTEMCTL = '/usr/bin/systemctl'
 ENV = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C', 'HOME': '/'}
 NFT_HASH = {
-    'ru': '4cc76368089640e048bf414267c22146304d3f0330387632883f3e217ab5460a',
+    'ru': 'fa997aa75d9ce57983cbf0a60e77506cf8567ecf1942da8e8377b5c46f2ae389',
     'fr': '74c34f24f2e00dc0a38d9ce4a2877ebb32457a6ad30903a734628eeed17fb243',
 }
 TASK06_HASH = 'e60439c1858ac9407d5e8e411c76e374f8ef44b7273376e3c503de7e1e6a8384'

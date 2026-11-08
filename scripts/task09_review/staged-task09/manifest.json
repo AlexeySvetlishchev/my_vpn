@@ -1,0 +1,13 @@
+{
+  "important": "No live ledger hash can be precomputed. Do not copy these files onto RU individually.",
+  "kind": "OFFLINE_SOURCE_STAGING_NOT_APPROVED_FOR_DEPLOY",
+  "old_helper_pin_sha256": "d2370830e7cc9228127d019d9dc53036a5dacb37320627328228fee58395a141",
+  "old_ru_nft_sha256": "4cc76368089640e048bf414267c22146304d3f0330387632883f3e217ab5460a",
+  "prepared": {
+    "apply.py": "e837be6315c68d02f47d856e9e1ea3b0e88eddc122e60a5c6cb7182bdc96f412",
+    "rollback.py": "7a1a98134e2d7bf85af0a2750de718bba379a71392d4a92fa4c4d6639ef73913",
+    "ru.nft": "fa997aa75d9ce57983cbf0a60e77506cf8567ecf1942da8e8377b5c46f2ae389",
+    "vpn-task07": "0f4416045a4bd321b0c424bd56ad645bc01babc99b60feb51a387fa3efd5f852"
+  },
+  "schema": 1
+}

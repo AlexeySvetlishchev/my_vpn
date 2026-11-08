@@ -2,6 +2,12 @@
 
 Дата: 2026-11-08
 
+Актуально после разрешённого обслуживания: TASK09 внедрён на RU; SQLite-backed
+helper активирован, шесть правил расширены, reconcile timer включён. Фактические
+проверки, ограничения и адресный откат: [TASK_09_DEPLOYMENT_RESULT.md](TASK_09_DEPLOYMENT_RESULT.md).
+Разделы ниже сохраняют историю подготовки и прежних ограничений; их запрет на
+внедрение заменён последующим прямым разрешением владельца.
+
 ## Текущее состояние
 
 ### OBSERVED — RU
@@ -59,3 +65,46 @@
 - Открытая backup содержит секретные материалы и должна оставаться root-only на RU до реализации authenticated encryption.
 - `tc` ограничения скорости и полное восстановление БД в live state не готовы.
 - FR production AmneziaVPN в этом этапе не диагностировался повторно; его не меняли.
+
+## TASK 08 → TASK 09 migration prototype (2026-11-08)
+
+### Implemented and locally verified
+
+- `scripts/task09_review/task09_linux_backend.py` composes durable storage with
+  an nft adapter restricted to an explicitly named network namespace; no
+  production/root-namespace install entry point exists.
+- Storage now shares the real TASK08 updater lock
+  `/var/lib/vpn-task08/ru-prefix-update.lock` (root mode), then acquires the
+  separate TASK09 migration lock, both nonblocking. This corrects the earlier
+  mismatch where migration had locked its own state directory instead.
+- Migration validates the staged `ru.nft`, `apply.py`, `rollback.py`, and
+  `vpn-task07` pins together through `task09_integrity.validate()`. It journals
+  the exact TASK08 owned nft baseline snapshot, not stale handles. Post-change
+  and recovery checks prove that only the six expected rule expressions and
+  the reserved-address guard differ; all other owned rules, chains, sets and
+  dynamic `ru_set`/`force_egress` members must match. Reverse commands use a
+  fresh snapshot and current handles.
+- Files use fsynced temporary files, exact modes, atomic rename and parent
+  directory fsync. Journal transitions and recovery are tested at each boundary;
+  a reverse failure retains the journal and calls fail-closed rather than
+  deleting or guessing at changed state.
+- Offline Linux test run: **63 passed, 1 skipped** (the real-nft test is skipped
+  by the general suite because that image lacks `nft`). Separate isolated
+  Docker network namespace run with `nftables` installed: **real kernel apply
+  and reverse passed**, with the canonical owned hash restored and populated
+  `ru_set` and `force_egress` data preserved. No RU/FR host was used.
+
+### Still blocked from live RU use
+
+- The named-network-namespace adapter was tested with a mocked command runner,
+  not through a newly created named namespace. The disposable Docker container
+  itself supplied the isolated kernel network namespace for the real nft test.
+- No boot-time recovery unit or operational maintenance gate is implemented.
+  nft and several file/ledger renames cannot be one atomic transaction; before
+  live use a reviewed gate must keep client traffic fail-closed throughout the
+  inconsistent window and guarantee journal recovery before TASK08/09 resume.
+- The RU kernel/nft version and complete live Russian-prefix/force-egress sets
+  (including their full live element counts) were not exercised. Only synthetic
+  dynamic set entries were used in the isolated real-nft test.
+- Therefore the migrator is **not ready for live application**. The live
+  helper, Test_iPhone keys/IP/profile, nftables, and both VPS remain untouched.
