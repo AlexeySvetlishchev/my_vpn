@@ -32,6 +32,10 @@ SERVER_KEY = OWNER + "/server.key"
 CLIENT_KEY = OWNER + "/client.key"
 CLIENT_PUB = OWNER + "/client.pub"
 PROFILE = OWNER + "/Test_iPhone.conf"
+# This file is installed at /usr/local/sbin/vpn-task07 by the TASK 07 unit.
+# TASK 08 rollback readiness pins this executable's SHA-256; deploy this
+# SQLite handoff only together with a coordinated TASK 08 ownership/ledger
+# update. Replacing this file alone invalidates TASK 08 rollback readiness.
 MANAGER_ACTIVATION = Path('/etc/vpn-task09/activation.json')
 MANAGER_DB = Path('/var/lib/vpn-task09/manager.sqlite3')
 EXPORT_DIR = "/home/wolffrog/task07-export"

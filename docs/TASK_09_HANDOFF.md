@@ -10,6 +10,7 @@
 - Импортированы метаданные прежнего `Test_iPhone`; ключ и профиль TASK 07 не менялись. Activation marker отсутствует, Manager timer/service не устанавливались. Изменённый `scripts/task07/helper.py` только в рабочем дереве/стейдже, не в установленном TASK 07.
 - Последняя проверка: `vpn-task07-client.service` active; один live peer `10.203.253.2/32`; Manager показывает peer присутствующим, drift пустой, TASK 06/08/DNS проверки healthy. Handshake не свежий на момент проверки, поэтому подключение клиента сейчас не подтверждено.
 - Сделана plaintext root-only резервная копия и проверена; `restore --stage` создавал защищённую копию без замены рабочей БД. Архив остаётся на RU; не копировать его открытым.
+- Установка TASK 07 helper по фактическому пути `/usr/local/sbin/vpn-task07` была опробована и адресно отменена. Новая версия изменила hash, контролируемый TASK 08 ownership/rollback; диагностика перешла в `task08_ownership=false`. После возврата исходного helper TASK 08 `ru check` снова показал `rollback_ready=true`, Manager diagnostics — ownership healthy. Исходник сохранён root:root 0755 в `/var/lib/vpn-task09/rollback/vpn-task07.before-task09`. Сейчас установлен старый helper; live peer не менялся.
 - FR, Docker, firewall, маршруты и peers в этой сессии не менялись.
 
 ### Подготовлено локально, не применено к dataplane
@@ -25,12 +26,13 @@
 ## Продолжение
 
 1. Прочитать `AGENTS.md`, `README.md`, актуальные `docs/SPEC.md`, `ARCHITECTURE.md`, `SECURITY.md`, `DECISIONS.md`, `ACCEPTANCE.md`, `WORK_RULES.md`, затем этот handoff и `docs/TASK_09_VPN_MANAGER.md`.
-2. Проверить `git status`, текущий commit и что предыдущий локальный commit TASK 09 присутствует. Не затрагивать прочие dirty файлы.
-3. Снять новый точечный baseline TASK 07/08 RU, сохранить точные копии helper/unit, `ru.nft`, `apply.py` pinned hash, active ledger, DB и старый peer public metadata. Секреты не читать/печатать.
-4. Получить требуемое владельцем единое согласование перед изменением шести RU rules, activation, любым `awg set` и перезапуском `vpn-task07-client.service`.
-5. После согласования атомарно применить проверенный nft batch и согласовать hash/ledger; импорт уже сохранён, сверить прежний Test_iPhone key identity/IP без вывода ключей.
-6. Установить TASK 07 SQLite-backed helper, создать activation marker, добавить один тестовый peer через `vpnctl`, экспортировать файл в защищённый каталог и проверить реальным устройством. Затем контролируемо перезапустить только TASK 07 для проверки восстановления; включить boot/timer только после успешных проверок.
-7. Проверить disable/enable/revoke нового peer, старый Test_iPhone, TASK 06/08, fail-closed, SSH и FR production без изменений Docker.
+2. Проверить `git status`, текущий commit и TASK 09 commit. Не затрагивать прочие dirty файлы.
+3. Снять точечный baseline TASK 07/08 RU: точные копии `/usr/local/sbin/vpn-task07`, unit, `/opt/vpn-task08/ru.nft`, `apply.py` и его `NFT_HASH['ru']`, active ledger, SQLite DB, OWNED nft table/rules/handles и public metadata/IP единственного peer. Не читать/печатать секреты.
+4. Подготовить согласованную пару артефактов: (a) SQLite-backed helper по фактическому пути `/usr/local/sbin/vpn-task07`; (b) TASK 08 ownership package с новым ожидаемым helper hash и согласованными `ru.nft` hash, active ledger `own_table_sha256`, pinned source hash. Не ослаблять проверки: обновить expected hash только на точное SHA-256 проверенного helper, оставить проверку owned nft objects/handles и всех TASK 08 predicates включённой.
+5. До установки запустить офлайн-тесты генерации обновлённых `ru.nft`, проверки pinned hash/ledger и rollback preconditions. На RU проверить rollback readiness в исходном состоянии; затем staged-копии новых артефактов должны пройти те же ownership/hash checks без применения. Обновление должно быть атомарным для nft batch, а package/helper/ledger публиковать в порядке, при котором recovery либо видит полностью старую валидную версию, либо полностью новую; при прерванном обновлении не запускать общий recovery до ручной проверки сохранённого baseline.
+6. Получить одно требуемое владельцем согласование. Сначала применить адресную версию TASK 08 и согласовать source hash + active ledger, доказать `ru check`, fail-closed lookup и сохранность исключения `10.203.253.1`; затем установить новый helper атомарно по `/usr/local/sbin/vpn-task07` и проверить `ru check`/diagnostics. Пока marker не изменён, helper при следующем старте сохраняет legacy fallback peer.
+7. Отдельно после согласования cutover записать activation marker, сверить SQLite identity с прежним Test_iPhone, затем разрешённые операции с peer. Без отдельного разрешения на restart остановиться до проверки восстановления: запущенный процесс загрузил старый код и новый startup handoff начинает действовать при следующем старте.
+8. После разрешённого restart проверить Test_iPhone, TASK 06/08, fail-closed, SSH и FR production; включать boot/timer только после успешных проверок. Тест нового клиента и peer lifecycle — отдельная следующая граница разрешения.
 
 ## Команды проверки
 
@@ -45,9 +47,9 @@
 ## Адресный откат после согласованного теста
 
 1. Остановить/отключить только TASK 09 reconcile timer и удалить activation marker.
-2. Удалить только новый peer по его public identity через `vpnctl device revoke USER DEVICE` и подтвердить отсутствие этого peer; сохранить `Test_iPhone`.
-3. Восстановить сохранённые `ru.nft`, pinned hash/ledger и TASK 07 helper/unit. Запустить только TASK 07, если его перезапускался.
-4. Проверить старый peer `10.203.253.2/32`, TASK 06/08 и SSH. Не выполнять глобальный firewall/Docker rollback и ничего на FR.
+2. Удалить только добавленный TASK 09 peer по записанному public identity; сохранить Test_iPhone.
+3. Восстановить исходный helper из `/var/lib/vpn-task09/rollback/vpn-task07.before-task09`, mode 0755; восстановить сохранённые TASK 08 `ru.nft`, `apply.py` pin и active ledger согласованно. Проверить `/usr/local/sbin/vpn-task08-rollback ru check` до любого рестарта.
+4. Если служба была перезапущена, запустить только `vpn-task07-client.service`; проверить старый peer `10.203.253.2/32`, TASK 06/08 и SSH. Не выполнять глобальный firewall/Docker rollback и ничего на FR.
 
 Если rollback precondition/hash отличается от сохранённого baseline — остановиться, не применять общий rollback.
 
