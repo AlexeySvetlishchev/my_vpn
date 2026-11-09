@@ -115,6 +115,9 @@ def parser():
         item = devices.add_parser(action)
         item.add_argument('user')
         item.add_argument('name')
+        if action == 'export':
+            item.add_argument('--format', choices=('conf', 'amnezia'), default='amnezia',
+                              help='amnezia: named .vpn import; conf: compatible raw AWG')
     device_limit = devices.add_parser('limit')
     device_limit.add_argument('user')
     device_limit.add_argument('name')
@@ -167,7 +170,7 @@ def execute(args, store, adapter, vault, *, require_activation=activated,
                 raise Refusal('device_disabled', 'only enabled devices can be exported')
             if adapter.peers().get(device['public_key']) != device['ipv4'] + '/32':
                 raise Refusal('peer_drift', 'device is not active in AWG')
-            return {'profile': device['profile_name'], 'path': vault.export(device),
+            return {'profile': device['profile_name'], 'path': vault.export(device, format=args.format),
                     'mode': '0600', 'contains_secret': True}
         require_activation(store)
         if args.action == 'add':

@@ -9,9 +9,13 @@
 *.secret
 secrets/
 credentials/
+scripts/task10/token
+scripts/task10/admins.json
+scripts/task10/credentials.json
 
 # VPN configurations containing private keys
 *.conf
+*.vpn
 !*.conf.example
 client-configs/
 backups/
@@ -21,6 +25,7 @@ backups/
 *.db-*
 *.sqlite
 *.sqlite3
+*.sqlite3-*
 
 # Python
 __pycache__/

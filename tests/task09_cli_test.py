@@ -91,6 +91,11 @@ class CliTests(unittest.TestCase):
         args = parser().parse_args(['restore', '--check', '/root/backup.tar'])
         self.assertEqual(args.check, '/root/backup.tar')
 
+    def test_named_native_export_is_default_and_raw_conf_is_explicit(self):
+        self.assertEqual(parser().parse_args(['device','export','Ivan','Phone']).format, 'amnezia')
+        self.assertEqual(parser().parse_args(['device','export','Ivan','Phone','--format','conf']).format, 'conf')
+        self.assertEqual(parser().parse_args(['device','export','Ivan','Phone','--format','amnezia']).format, 'amnezia')
+
 
 if __name__ == '__main__':
     unittest.main()

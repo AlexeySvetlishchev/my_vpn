@@ -1,0 +1,24 @@
+[Unit]
+Description=TASK 10 isolated Telegram socket policy through FR
+Requires=vpn-task08-egress.service
+After=vpn-task08-egress.service
+PartOf=vpn-task08-egress.service
+Before=vpn-task10-broker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 -I -B /opt/vpn-task10/egress_entry.py ensure
+ExecStop=/usr/bin/python3 -I -B /opt/vpn-task10/egress_entry.py remove
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/etc/vpn-task10 /var/lib/vpn-task08
+CapabilityBoundingSet=CAP_NET_ADMIN
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

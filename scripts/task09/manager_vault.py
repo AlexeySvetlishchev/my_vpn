@@ -6,6 +6,7 @@ import stat
 
 from manager_db import Refusal
 from manager_runtime import AWG, command
+from manager_formats import amnezia_profile
 
 ROOT = Path('/etc/vpn-task09/devices')
 EXPORTS = Path('/var/lib/vpn-task09/exports')
@@ -74,7 +75,9 @@ class Vault:
             directory.rmdir()
             raise
 
-    def export(self, device, server_key=SERVER_KEY):
+    def export(self, device, server_key=SERVER_KEY, *, format='conf'):
+        if format not in ('conf', 'amnezia'):
+            raise Refusal('export_format', 'unsupported export format')
         key_ref = Path(device['key_ref'])
         if device['origin'] == 'task07':
             if key_ref != LEGACY_KEY:
@@ -107,6 +110,9 @@ class Vault:
             'PersistentKeepalive = 25\n'
         )
         safe_directory(self.exports, enforce_ownership=self.enforce_ownership)
-        output = self.exports / (device['profile_name'] + '.conf')
-        exclusive_file(output, profile.encode('ascii') if profile.isascii() else profile.encode('utf-8'))
+        content = profile.encode('utf-8')
+        if format == 'amnezia':
+            content = amnezia_profile(content)
+        output = self.exports / (device['profile_name'] + ('.vpn' if format == 'amnezia' else '.conf'))
+        exclusive_file(output, content)
         return str(output)

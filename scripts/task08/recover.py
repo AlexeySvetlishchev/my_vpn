@@ -119,6 +119,16 @@ def restore_nft(role, ledger, task06, apply, rollback):
 
 def restore_ru_rules(ledger):
     expected = ledger['rules4']
+    # TASK10 owns only two socket-mark rules. They are maintained separately;
+    # client recovery must retain its exact seven-rule contract.
+    bot_rules = [r for r in expected if r.get('priority') in (10040, 10041)]
+    if bot_rules:
+        marker = json.loads(read_root(Path('/etc/vpn-task10/egress.json'), 0o600))
+        if (marker.get('schema') != 1 or marker.get('role') != 'ru' or
+                marker.get('mark') != '0x704' or marker.get('rules4') != bot_rules or
+                len(bot_rules) != 2 or any(r.get('fwmark') != '0x704' for r in bot_rules)):
+            raise RuntimeError('TASK 10 RPDB ownership mismatch')
+        expected = [r for r in expected if r.get('priority') not in (10040, 10041)]
     if len(expected) != 7:
         raise RuntimeError('RU ledger rule count mismatch')
     current = json.loads(run([IP, '-j', '-4', 'rule', 'show']))

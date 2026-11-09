@@ -1,0 +1,39 @@
+[Unit]
+Description=TASK 10 restricted local VPN Manager broker
+After=vpn-task07-client.service
+Requires=vpn-task07-client.service
+Requires=vpn-task10-egress.service
+After=vpn-task10-egress.service
+PartOf=vpn-task10-egress.service
+ConditionPathExists=/etc/vpn-task10/admins.json
+
+[Service]
+Type=simple
+User=root
+UMask=0077
+RuntimeDirectory=vpn-task10-broker
+RuntimeDirectoryMode=0755
+StateDirectory=vpn-task10-broker
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -I -B /opt/vpn-task10/broker_entry.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+CapabilityBoundingSet=CAP_NET_ADMIN
+ReadWritePaths=/var/lib/vpn-task09 /etc/vpn-task09/devices /run/vpn-task09 /run/vpn-task07
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+LimitCORE=0
+StandardOutput=journal
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

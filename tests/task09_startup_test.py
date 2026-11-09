@@ -67,6 +67,17 @@ class HandoffTests(unittest.TestCase):
         self.store.set_user_state('Ivan', 'disabled')
         self.assertEqual(self.peers(), [(self.legacy, '10.203.253.2/32')])
 
+    def test_revoked_legacy_identity_is_kept_but_not_restored_as_peer(self):
+        self.store.add_user('Test')
+        self.store.add_device('Test','iPhone',self.legacy,'/etc/vpn-task07/client.key',
+                              origin='task07',ipv4='10.203.253.2')
+        self.store.add_user('Permanent')
+        self.store.add_device('Permanent','Phone',pub(4),'/test-only/permanent.key')
+        self.activate()
+        self.store.set_device_state('Test','iPhone','revoked')
+        self.assertEqual(self.peers(),[(pub(4),'10.203.253.3/32')])
+        self.assertEqual(self.store.device('Test','iPhone')['public_key'],self.legacy)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -48,6 +48,10 @@ device RU/FR/DNS/IPv6 acceptance from TASK08 remains the earlier result.
 
 ## Backup and addressed rollback
 
+If TASK10 is deployed, perform its addressed removal first as documented in
+[TASK_10_DEPLOYMENT_RESULT.md](TASK_10_DEPLOYMENT_RESULT.md), before using the
+older TASK09 baseline. TASK10 owns additional isolated routing/ledger records.
+
 The accepted baseline is root-only at:
 `/var/backups/vpn-task09/20261108T180859Z`.
 It includes the installed TASK07 helper/unit/configurations, TASK08 package,

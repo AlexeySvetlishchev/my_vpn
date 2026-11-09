@@ -1,0 +1,17 @@
+{
+    "bot.py":  "8f34d400bef95f5d76682dd9878d68a63778f86ac8b27a2277326da3453fdba9",
+    "broker.py":  "343c390c8e0cb28951e7be6682a88832a83f3e28c667c7657e05fa65e5cfa4cf",
+    "telegram_api.py":  "74a354c55761d012cf38efd919c3cc190c81c214b2507085285b1ce850c229fc",
+    "bot_entry.py":  "b71d71796f6005351d164777f4a4968d64ddf47c18c708882baf6290aa3805a9",
+    "broker_entry.py":  "ac0395405b6f5764030304bf744aded980a035453915af3811dd5d628591f9a3",
+    "egress.py":  "1df6aa3f028edc2a774df3fac271f52af2f82ed3aedbda168776fd0c6c10fc12",
+    "egress_control.py":  "42d00232c573621b3151f4cbd27a6fd7ab4961f364bca580fa1925649815aed0",
+    "egress_entry.py":  "3838a99b9ee070ddada93f450e562d73192c4d4c10656b5c0bacad7cf220c765",
+    "qr.py":  "5ad3cb448ffa40a28c20187fe0544a718ce5d429dc5016388d8334e59a960479",
+    "rollback_entry.py":  "25cd6ca4b2810933ebc79418f20b8f5f36b7c6862a18c3da479f1b4de32d6324",
+    "vpn-task10-broker.service":  "c2f2f5ca885c326a42e52d3eef033788acb54afe571f9d7a2be3707ed2d3ce03",
+    "vpn-task10-bot.service":  "3bf3749b4f5147637994d4d246e7e3bffd20d70aa9063203599d4ac7ddd4e46e",
+    "vpn-task10-egress.service":  "afa7fe14f9f3a8e8121a0de3d8d5b5f19d74a1c7d342c1ba42dcb42855267f0b",
+    "task08-recover.py":  "b7f415225f80817fc755a3b00c3b43735b54449cda431937a7e43fb09971b9e2",
+    "legacy-task08-recover-sha256":  "d7bd97a277eb078efc19c89048f92e87f99295824fd8efefa4a1834241b52fdd"
+}

@@ -1,0 +1,39 @@
+[Unit]
+Description=TASK 10 private administrative Telegram VPN Manager
+After=network-online.target vpn-task10-broker.service
+Wants=network-online.target
+Requires=vpn-task10-broker.service
+PartOf=vpn-task10-broker.service
+ConditionPathExists=/etc/vpn-task10/token
+ConditionPathExists=/etc/vpn-task10/admins.json
+
+[Service]
+Type=simple
+DynamicUser=yes
+User=vpn-task10
+UMask=0077
+StateDirectory=vpn-task10-bot
+StateDirectoryMode=0700
+LoadCredential=token:/etc/vpn-task10/token
+LoadCredential=admins:/etc/vpn-task10/admins.json
+ExecStart=/usr/bin/python3 -I -B /opt/vpn-task10/bot_entry.py
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+LimitCORE=0
+StandardOutput=journal
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
